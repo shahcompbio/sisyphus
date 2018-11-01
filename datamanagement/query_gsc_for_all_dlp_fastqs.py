@@ -48,7 +48,7 @@ if __name__ == "__main__":
             storage,
             tag_name)
 
-        datasets = tantalus_api.list("sequence_data",
+        datasets = tantalus_api.list("sequence_dataset",
             library__library_id=sequence["library"],
             sequence_lanes__sequencing_centre="GSC")
 
