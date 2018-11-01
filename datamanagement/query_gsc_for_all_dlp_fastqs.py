@@ -54,11 +54,12 @@ if __name__ == "__main__":
 
         flowcells_to_be_created = []
         for dataset in datasets:
-            for lanes in dataset["sequence_lanes"]:
-                
+            for lane in dataset["sequence_lanes"]:
+                flowcell_id = lane['flowcell_id'] + '_' + lane['lane_number']
+                colossus_api.get_or_create("lane", sequencing=sequence['id'], flow_cell_id=flowcell_id, path_to_archive="")
 
-        for flowcell in flowcells_to_be_created:
-            colossus_api.get_or_create("lane", sequencing=sequence['id'], flow_cell_id=flowcell, path_to_archive="")
+        '''for flowcell in flowcells_to_be_created:
+            colossus_api.get_or_create("lane", sequencing=sequence['id'], flow_cell_id=flowcell, path_to_archive="")'''
 
         colossus_api.update('sequencingdetails', sequence['dlpsequencingdetail']['id'], lanes_received=True)
 
