@@ -7,11 +7,25 @@ import string
 import sys
 import time
 import pandas as pd
+from sets import Set
 from datamanagement.query_gsc_for_dlp_fastqs import import_gsc_dlp_paired_fastqs
 from datamanagement.utils.constants import LOGGING_FORMAT
 from datamanagement.utils.runtime_args import parse_runtime_args
 from dbclients.colossus import ColossusApi
 from dbclients.tantalus import TantalusApi
+
+
+def generate_flowcells(library):
+        datasets = tantalus_api.list("sequence_dataset",
+        library__library_id=library,
+        sequence_lanes__sequencing_centre="GSC")
+
+        flowcells_to_be_created = []
+        for dataset in datasets:
+            for lane in dataset["sequence_lanes"]:
+                flowcell_id = lane['flowcell_id'] + '_' + lane['lane_number']
+                flowcells_to_be_created.append(flowcell_id)
+        return flowcells_to_be_created
 
 
 if __name__ == "__main__":
@@ -40,6 +54,8 @@ if __name__ == "__main__":
         except KeyError:
             tag_name = None
 
+        first_list = generate_flowcells(sequence['library'])
+
         # Query GSC for FastQs
         import_gsc_dlp_paired_fastqs(
             colossus_api,
@@ -48,19 +64,13 @@ if __name__ == "__main__":
             storage,
             tag_name)
 
-        datasets = tantalus_api.list("sequence_dataset",
-            library__library_id=sequence["library"],
-            sequence_lanes__sequencing_centre="GSC")
+        second_list = generate_flowcells(sequence['library'])
 
-        flowcells_to_be_created = []
-        for dataset in datasets:
-            for lane in dataset["sequence_lanes"]:
-                flowcell_id = lane['flowcell_id'] + '_' + lane['lane_number']
-                colossus_api.get_or_create("lane", sequencing=sequence['id'], flow_cell_id=flowcell_id, path_to_archive="")
+        for flowcell in second_list:
+            colossus_api.get_or_create("lane", sequencing=sequence['id'], flow_cell_id=flowcell)
 
-        '''for flowcell in flowcells_to_be_created:
-            colossus_api.get_or_create("lane", sequencing=sequence['id'], flow_cell_id=flowcell, path_to_archive="")'''
+        if set(first_list) != set(second_list):
+            colossus_api.update('sequencingdetails', sequence['dlpsequencingdetail']['id'], lanes_received=True)
 
-        colossus_api.update('sequencingdetails', sequence['dlpsequencingdetail']['id'], lanes_received=True)
 
 
