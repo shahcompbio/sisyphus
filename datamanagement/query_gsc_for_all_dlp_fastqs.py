@@ -41,12 +41,21 @@ if __name__ == "__main__":
             tag_name = None
 
         # Query GSC for FastQs
-        flowcells_to_be_created = import_gsc_dlp_paired_fastqs(
+        import_gsc_dlp_paired_fastqs(
             colossus_api,
             tantalus_api,
             sequence["library"],
             storage,
             tag_name)
+
+        datasets = tantalus_api.list("sequence_data",
+            library__library_id=sequence["library"],
+            sequence_lanes__sequencing_centre="GSC")
+
+        flowcells_to_be_created = []
+        for dataset in datasets:
+            for lanes in dataset["sequence_lanes"]:
+                
 
         for flowcell in flowcells_to_be_created:
             colossus_api.get_or_create("lane", sequencing=sequence['id'], flow_cell_id=flowcell, path_to_archive="")
