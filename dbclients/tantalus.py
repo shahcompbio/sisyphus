@@ -25,6 +25,7 @@ class BlobStorageClient(object):
         self.storage_container = storage['storage_container']
         self.storage_key = storage['credentials']['storage_key']
         self.prefix = storage['prefix']
+        print(storage['credentials'], 'test')
 
         self.blob_service = azure.storage.blob.BlockBlobService(
             account_name=self.storage_account,
@@ -51,6 +52,10 @@ class BlobStorageClient(object):
 class ServerStorageClient(object):
     def __init__(self, storage):
         self.storage_directory = storage['storage_directory']
+
+    def file_exist_check(self, filename):
+        file_name = os.path.join(self.storage_directory, filename)
+        return os.path.exists(file_name)
 
     def get_size(self, filename):
         filename = os.path.join(self.storage_directory, filename)
