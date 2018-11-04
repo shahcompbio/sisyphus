@@ -41,6 +41,21 @@ class BlobStorageClient(object):
         created_time = properties.properties.last_modified.isoformat()
         return created_time
 
+    def get_url(self, blobname):
+        sas_token = self.blob_service.generate_blob_shared_access_signature(
+            self.storage_account,
+            blobname,
+            permission=azure.storage.blob.BlobPermissions.READ,
+            expiry=datetime.datetime.utcnow() + datetime.timedelta(hours=1),
+        )
+        blob_url = self.blob_service.make_blob_url(
+            container_name=self.container_name,
+            blob_name=blobname,
+            protocol="http",
+            sas_token=sas_token,
+        )
+        return blob_url
+
 
 class ServerStorageClient(object):
     def __init__(self, storage):
@@ -51,12 +66,16 @@ class ServerStorageClient(object):
         return os.path.exists(file_name)
 
     def get_size(self, filename):
-        filename = os.path.join(self.storage_directory, filename)
-        return os.path.getsize(filename)
+        filepath = os.path.join(self.storage_directory, filename)
+        return os.path.getsize(filepath)
 
     def get_created_time(self, filename):
-        filename = os.path.join(self.storage_directory, filename)
-        return pd.Timestamp(time.ctime(os.path.getmtime(filename)), tz="Canada/Pacific")
+        filepath = os.path.join(self.storage_directory, filename)
+        return pd.Timestamp(time.ctime(os.path.getmtime(filepath)), tz="Canada/Pacific")
+    
+    def get_url(self, filename):
+        filepath = os.path.join(self.storage_directory, filename)
+        return filepath
 
 
 class TantalusApi(BasicAPIClient):
