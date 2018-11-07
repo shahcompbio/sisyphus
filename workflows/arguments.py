@@ -116,14 +116,6 @@ def get_args():
         help='Skips import of data from BRC and GSC.'
     )
 
-    parser.add_argument(
-        '--no_bcl2fastq',
-        default=False,
-        action='store_true',
-        help='Skip running of bcl2fastq on BRC lanes.'
-    )
-
-
     # SINGLE CELL PIPELINE OPTIONS #
     parser.add_argument(
         '--rerun',

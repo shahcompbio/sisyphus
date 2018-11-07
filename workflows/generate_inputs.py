@@ -25,7 +25,7 @@ def generate_sample_info(library_id):
 
     data = colossus_api.get('library', pool_id=library_id)
     pool_id = data['pool_id']
-    sublibraries = colossus_utils.query_colossus_for_sublibraries(library_id)
+    sublibraries = colossus_api.list('sublibraries', library__pool_id=chip_id)
     sample_ids = set()
 
     rows = []
