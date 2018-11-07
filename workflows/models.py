@@ -226,7 +226,7 @@ class Analysis(object):
                 'name':             name,
                 'jira_ticket':      jira,
                 'args':             args,
-                'status':           self.status,
+                'status':           'idle',
                 'input_datasets':   input_datasets,
                 'input_results':    input_results,
             }
