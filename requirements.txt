@@ -1,2 +1,6 @@
+azure-storage
 coreapi
+django
 openapi_codec
+pandas
+pyyaml

@@ -13,8 +13,8 @@ import datamanagement.templates as templates
 import launch_pipeline
 import generate_inputs
 
-from utils import (colossus_utils, saltant_utils,
-                   file_utils, log_utils, file_transfers, bcl2fastq)
+from utils import (saltant_utils,
+                   file_utils, log_utils, file_transfers)
 from utils.log_utils import sentinel
 from models import AnalysisInfo, AlignAnalysis, HmmcopyAnalysis, Results
 
@@ -26,58 +26,6 @@ formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(messag
 stream_handler.setFormatter(formatter)
 log.addHandler(stream_handler)
 log.propagate = False
-
-
-# TODO: remove
-'''
-def run_bcl2fastq_and_send_to_tantalus(flowcell_id, path_to_archive, run_id, library_id, shahlab_run=False):
-    """
-    Runs BCL2FASTQ on BCL files from the BRC and pushes them to Tantalus.
-    Args:
-        flowcell_id (str)
-        path_to_archive (str)
-        run_id (str)
-        library_id (str)
-        shahlab_run (bool)
-    """
-    bcl_directory = templates.BCL_DIR.format(run_id=run_id)
-    if not os.path.exists(bcl_directory):
-        os.makedirs(bcl_directory)
-
-    fastq_directory = templates.FASTQ_DIR.format(run_id=run_id)
-    if not os.path.exists(fastq_directory):
-        os.makedirs(fastq_directory)
-
-    sentinel(
-        'Retrieving BCL files',
-        bcl2fastq.retrive_bcl_files,
-        path_to_archive,
-        bcl_directory,
-    )
-
-    sentinel(
-        'Getting samplesheet',
-        bcl2fastq.get_samplesheet,
-        bcl_directory,
-        library_id,
-        flowcell_id,
-     )
-
-    sentinel(
-        'Running bcl2fastq',
-        bcl2fastq.run_bcl2fastq,
-        bcl_directory,
-        fastq_directory,
-        shahlab_run,
-    )
-
-    sentinel(
-        'Sending bcl2fastq output to Tantalus',
-        tantalus.push_bcl2fastq_paths,
-        {flowcell_id: fastq_directory},
-        'shahlab',
-    )
-'''
 
 
 def get_jobs(args):

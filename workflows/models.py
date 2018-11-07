@@ -13,7 +13,7 @@ from dbclients.basicclient import NotFoundError
 
 import generate_inputs
 import datamanagement.templates as templates
-from utils import colossus_utils, tantalus_utils, file_utils
+from utils import tantalus_utils, file_utils
 
 from azure.storage.blob import BlockBlobService
 
@@ -191,8 +191,8 @@ class Analysis(object):
         except NotFoundError:
             analysis = None
 
-        input_datasets = self.search_input_datasets()
-        input_results = self.search_input_results()
+        input_datasets = self.search_input_datasets(args)
+        input_results = self.search_input_results(args)
 
         if analysis is not None:
             log.info('Found existing analysis {}'.format(name))
@@ -200,9 +200,9 @@ class Analysis(object):
             updated = False
 
             fields_to_check = {
-                'args': (args, lambda a, b: a == b),
-                'input_datasets': (input_datasets, lambda a, b: set(a) == set(b)),
-                'input_results': (input_results, lambda a, b: set(a) == set(b)),
+                'args': (args, lambda a, b: a != b),
+                'input_datasets': (input_datasets, lambda a, b: set(a) != set(b)),
+                'input_results': (input_results, lambda a, b: set(a) != set(b)),
             }
 
             for field_name, (new_data, f_check) in fields_to_check.iteritems():
@@ -324,13 +324,15 @@ class Analysis(object):
     def get_id(self):
         return self.analysis['id']
 
-    def search_input_datasets(self):
+    @staticmethod
+    def search_input_datasets(args):
         """
         Get the list of input datasets required to run this analysis.
         """
         return []
 
-    def search_input_results(self):
+    @staticmethod
+    def search_input_results(args):
         """
         Get the list of input results required to run this analysis.
         """
@@ -413,7 +415,8 @@ class AlignAnalysis(Analysis):
     def __init__(self, args, **kwargs):
         super(AlignAnalysis, self).__init__('align', args, **kwargs)
 
-    def search_input_datasets(self):
+    @staticmethod
+    def search_input_datasets(args):
         """
         Query Tantalus for paired-end fastq datasets given library id and sample id.
 
@@ -422,20 +425,20 @@ class AlignAnalysis(Analysis):
         """
 
         filter_lanes = []
-        if self.args['gsc_lanes'] is not None:
-            filter_lanes += self.args['gsc_lanes']
-        if self.args['brc_flowcell_ids'] is not None:
+        if args['gsc_lanes'] is not None:
+            filter_lanes += args['gsc_lanes']
+        if args['brc_flowcell_ids'] is not None:
             # Each BRC flowcell has 4 lanes
             filter_lanes += ['{}_{}'.format(flowcell_id, i+1) for i in range(4)]
 
         datasets = tantalus_api.list(
             'sequence_dataset',
-            library__library_id=self.args['library_id'],
+            library__library_id=args['library_id'],
             dataset_type='FQ',
         )
 
         if not datasets:
-            raise Exception('no sequence datasets matching library_id {}'.format(self.args['library_id']))
+            raise Exception('no sequence datasets matching library_id {}'.format(args['library_id']))
 
         dataset_ids = set()
 
@@ -646,7 +649,8 @@ class HmmcopyAnalysis(Analysis):
         self.align_analysis = align_analysis
         super(HmmcopyAnalysis, self).__init__('hmmcopy', args, **kwargs)
 
-    def search_input_datasets(self):
+    @staticmethod
+    def search_input_datasets(args):
         """
         Get the input BAM datasets for this analysis.
         """
@@ -660,15 +664,19 @@ class PseudoBulkAnalysis(Analysis):
     def __init__(self, args, **kwargs):
         super(PseudoBulkAnalysis, self).__init__('pseudobulk', args, **kwargs)
 
-    def search_input_datasets(self):
+    @staticmethod
+    def search_input_datasets(args):
         """
         Query Tantalus for bams that match the associated
         pseudobulk analysis.
         """
 
+        jira = args['jira']
+
         datasets = tantalus_api.list(
             'sequence_dataset',
-            tags__name=self.jira)
+            tags__name=jira)
+
         dataset_ids = [dataset['id'] for dataset in datasets]
 
         return dataset_ids
@@ -735,21 +743,18 @@ class CNCloneAnalysis(Analysis):
     def __init__(self, args, **kwargs):
         super(CNCloneAnalysis, self).__init__('cnclone', args, **kwargs)
 
-    def search_input_datasets(self):
-        """
-        Query Tantalus for bams that match the associated
-        pseudobulk analysis.
-        """
-        return []
-
-    def search_input_results(self):
+    @staticmethod
+    def search_input_results(args):
         """
         Query Tantalus for hmmcopy inputs that match the associated
         cnclone analysis.
         """
+
+        jira = args['jira']
+
         input_results = tantalus_api.list(
             'results',
-            tags__name=self.jira)
+            tags__name=jira)
 
         for results in input_results:
             if results["results_type"] != "hmmcopy":
