@@ -234,7 +234,7 @@ class Analysis(object):
             storage_name=inputs_yaml_storage,
             filepath=inputs_yaml,
             file_type="YAML",
-            {"compression": "UNCOMPRESSED"},
+            fields={"compression": "UNCOMPRESSED"},
             update=update,
          )
 
