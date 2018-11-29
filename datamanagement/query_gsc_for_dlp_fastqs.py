@@ -126,6 +126,13 @@ def get_existing_fastq_data(tantalus_api, dlp_library_id):
         file_resources = tantalus_api.list('file_resource', sequencedataset__id=sequence_dataset['id'])
 
         for file_resource in file_resources:
+            in_shahlab = False
+            for file_instance in file_resource['file_instances']:
+                if(file_instance['storage']['name'] == 'shahlab'):
+                    in_shahlab = True
+                    break
+            if(not in_shahlab):
+                continue
             index_sequence = str(file_resource['sequencefileinfo']['index_sequence'])
             read_end = file_resource['sequencefileinfo']['read_end']
 
