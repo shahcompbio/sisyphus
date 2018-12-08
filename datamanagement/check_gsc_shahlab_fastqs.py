@@ -181,7 +181,7 @@ if __name__ == '__main__':
             extension=extension,
         )
 
-        fastq_filesize[tantalus_filename] = fastq_info["file_size_bytes"]
+        fastq_filesize[tantalus_filename] = fastq_info
         i+=1
         print(i)
     
@@ -192,10 +192,11 @@ if __name__ == '__main__':
         try:
             file_resource = tantalus_api.get('file_resource', filename=path)
             if(path in fastq_filesize.keys()):
-                if(fastq_filesize[path] == file_resource['size']):
+                print(fastq_filesize[path]['data_path'])
+                if(fastq_filesize[path]["file_size_bytes"] == file_resource['size']):
                     print('The size of {} matches in GSC and Shahlab at {} bytes'.format(path, file_resource['size']))
                 else:
-                    print('The size of {} does not match in GSC and Shahlab. GSC: {}, Shahlab: {}'.format(path, fastq_filesize[path], file_resource['size']))
+                    print('The size of {} does not match in GSC and Shahlab. GSC: {}, Shahlab: {}'.format(path, fastq_filesize[path]['file_size_bytes'], file_resource['size']))
             else:
                 print("{} doesn't exist in GSC".format(path))
         except:
