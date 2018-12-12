@@ -218,7 +218,7 @@ if __name__ == "__main__":
         dataset_type="FQ"))
 
     if len(datasets) > 0:
-        log.warning("found dataset {}".format(','.join([str(d["id"]) for d in datasets])))
+        logging.warning("found dataset {}".format(','.join([str(d["id"]) for d in datasets])))
 
     # Run bcl to fastq
     run_bcl2fastq(
