@@ -156,13 +156,13 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, sto
 
     # Existing fastqs in tantalus as a set of tuples of
     # the form (flowcell_id, lane_number, index_sequence, read_end)
-    existing_data = get_existing_fastq_data(tantalus_api, dlp_library_id)
+    #existing_data = get_existing_fastq_data(tantalus_api, dlp_library_id)
 
     primary_sample_id = colossus_api.query_libraries_by_library_id(dlp_library_id)['sample']['sample_id']
-    cell_samples = query_colossus_dlp_cell_info(colossus_api, dlp_library_id)
-    rev_comp_overrides = query_colossus_dlp_rev_comp_override(
-        colossus_api, dlp_library_id
-    )
+    #cell_samples = query_colossus_dlp_cell_info(colossus_api, dlp_library_id)
+    #rev_comp_overrides = query_colossus_dlp_rev_comp_override(
+    #    colossus_api, dlp_library_id
+    #)
 
     external_identifier = "{}_{}".format(primary_sample_id, dlp_library_id)
 
@@ -186,7 +186,11 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, sto
 
     gsc_library_id = library_info["name"]
 
-    fastq_infos = gsc_api.query("fastq?parent_library={}".format(gsc_library_id))
+    print(gsc_library_id)
+
+    return gsc_library_id
+
+    '''fastq_infos = gsc_api.query("fastq?parent_library={}".format(gsc_library_id))
 
     fastq_file_info = []
 
@@ -338,7 +342,7 @@ def import_gsc_dlp_paired_fastqs(colossus_api, tantalus_api, dlp_library_id, sto
 
     logging.info('import succeeded')
 
-    return flowcells_to_be_created
+    return flowcells_to_be_created'''
 
 if __name__ == "__main__":
     # Set up the root logger

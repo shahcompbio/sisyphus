@@ -6,6 +6,7 @@ import os
 import string
 import sys
 import time
+import json
 import pandas as pd
 from datamanagement.query_gsc_for_dlp_fastqs import import_gsc_dlp_paired_fastqs
 from datamanagement.utils.constants import LOGGING_FORMAT
@@ -28,8 +29,8 @@ if __name__ == "__main__":
     storage = tantalus_api.get("storage_server", name=args["storage_name"])
     sequencing_list = list(colossus_api.list(
         'sequencing',
-        dlpsequencingdetail__lanes_requested=True,
-        dlpsequencingdetail__lanes_received=False,
+        #dlpsequencingdetail__lanes_requested=True,
+        #dlpsequencingdetail__lanes_received=False,
     ))
 
     for sequence in sequencing_list:
@@ -48,9 +49,14 @@ if __name__ == "__main__":
             storage,
             tag_name)
 
-        for flowcell in flowcells_to_be_created:
-            colossus_api.get_or_create("lane", sequencing=sequence['id'], flow_cell_id=flowcell)
+        '''for flowcell in flowcells_to_be_created:
+            colossus_api.get_or_create("lane", sequencing=sequence['id'], flow_cell_id=flowcell)'''
+        if(flowcells_to_be_created == []):
+            continue
 
-        colossus_api.update('sequencingdetails', sequence['dlpsequencingdetail']['id'], lanes_received=True)
+
+        if(sequence['dlpsequencingdetail'] is not None):
+            colossus_api.update('sequencingdetails', sequence['dlpsequencingdetail']['id'], gsc_library_id=flowcells_to_be_created)
+
 
 
