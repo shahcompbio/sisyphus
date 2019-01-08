@@ -60,6 +60,9 @@ def run_pipeline2(*args, **kwargs):
     print args, kwargs
 
 def run_pipeline(
+        results_dir,
+        scpipeline_dir,
+        tmp_dir,
         tantalus_analysis,
         analysis_info,
         inputs_yaml,
@@ -69,7 +72,7 @@ def run_pipeline(
 
     args = tantalus_analysis.args
     config_override_string = get_config_string(analysis_info)
-
+    
     run_cmd = [
         'single_cell',          tantalus_analysis.analysis_type,
         '--input_yaml',         inputs_yaml,
