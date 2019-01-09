@@ -66,7 +66,7 @@ class AnalysisInfo:
         reference_genome = self.analysis_info['reference_genome']['reference_genome']
         if reference_genome not in self.reference_genome_choices:
             raise Exception('Unrecognized reference genome {}'.format(reference_genome))
-        return reference_genome
+        return self.reference_genome_choices[reference_genome]
 
     def get_pipeline_version(self, update=False):
         version_str = self.analysis_info['version']
@@ -664,6 +664,7 @@ class HmmcopyAnalysis(Analysis):
         Get the input BAM datasets for this analysis.
         """
         datasets = tantalus_api.list('sequence_dataset', analysis=args["align_analysis"], dataset_type='BAM')
+        
         return [dataset['id'] for dataset in datasets]
 
     def get_results_filenames(self):
