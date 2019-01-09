@@ -40,6 +40,7 @@ def get_config_override(analysis_info):
         'aligner':              'bwa-mem',
         'reference':            'grch37',
         'smoothing_function':   'modal',
+        'containers':           {"mounts": ["/refdata", "/datadrive", "/mnt", "/home"]}
     }
 
     cluster = 'azure'
