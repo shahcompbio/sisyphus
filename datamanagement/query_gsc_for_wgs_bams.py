@@ -277,16 +277,27 @@ def get_gsc_details(
                 logging.info("skipping old merge")
                 continue
 
+            reference_genome = merge_info["lims_genome_reference"]["path"]
+            aligner = merge_info["aligner_software"]["name"]
+
             lane_infos = []
 
             for merge_xref in merge_info["merge_xrefs"]:
                 if merge_xref["object_type"] == "metadata.aligned_libcore":
-                    libcore = gsc_api.query("aligned_libcore/{}/info".format(merge_xref["object_id"]))
-                    run = libcore["libcore"]["run"]
+                    aligned_libcore = gsc_api.query("aligned_libcore/{}/info".format(merge_xref["object_id"]))
+                    libcore = aligned_libcore["libcore"]
+                    run = libcore["run"]
+                    primer = libcore["primer"]
 
                 elif merge_xref["object_type"] == "metadata.run":
                     run = gsc_api.query("run/{}".format(merge_xref["object_id"]))
-                    import IPython; IPython.embed(); raise
+                    libcores = gsc_api.query("libcore?run_id={}".format(merge_xref["object_id"]))
+                    assert len(libcores) == 1
+                    libcore = libcores[0]
+                    primer = gsc_api.query("primer/{}".format(libcore["primer_id"]))
+
+                else:
+                    raise Exception('unknown object type {}'.format(merge_xref["object_type"]))
 
                 flowcell_info = gsc_api.query("flowcell/{}".format(run["flowcell_id"]))
                 flowcell_id = flowcell_info["lims_flowcell_code"]
@@ -294,12 +305,7 @@ def get_gsc_details(
                 sequencing_instrument = get_sequencing_instrument(run["machine"])
                 solexa_run_type = run["solexarun_type"]
                 created_date = convert_time(run["run_datetime"])
-
-                reference_genome = libcore["lims_genome_reference"]["path"]
-                aligner = libcore["analysis_software"]["name"]
-                adapter_index_sequence = libcore["libcore"]["primer"][
-                    "adapter_index_sequence"
-                ]
+                adapter_index_sequence = primer["adapter_index_sequence"]
 
                 merged_lanes.add((flowcell_id, lane_number, adapter_index_sequence))
 
