@@ -199,7 +199,7 @@ def add_gsc_bam_lanes(sample, library, lane_infos):
             sequencing_instrument=lane_info["sequencing_instrument"],
             read_type=lane_info["read_type"],
             dna_library=library,
-            model="SequenceLane",
+            asdf='asdf',
         )
 
         detail_list.append(lane)
@@ -280,21 +280,23 @@ def get_gsc_details(
             lane_infos = []
 
             for merge_xref in merge_info["merge_xrefs"]:
-                libcore_id = merge_xref["object_id"]
+                if merge_xref["object_type"] == "metadata.aligned_libcore":
+                    libcore = gsc_api.query("aligned_libcore/{}/info".format(merge_xref["object_id"]))
+                    run = libcore["libcore"]["run"]
 
-                libcore = gsc_api.query(
-                    "aligned_libcore/{}/info".format(libcore_id)
-                )
-                flowcell_id = libcore["libcore"]["run"]["flowcell_id"]
-                lane_number = libcore["libcore"]["run"]["lane_number"]
-                sequencing_instrument = get_sequencing_instrument(
-                    libcore["libcore"]["run"]["machine"]
-                )
-                solexa_run_type = libcore["libcore"]["run"]["solexarun_type"]
+                elif merge_xref["object_type"] == "metadata.run":
+                    run = gsc_api.query("run/{}".format(merge_xref["object_id"]))
+                    import IPython; IPython.embed(); raise
+
+                flowcell_info = gsc_api.query("flowcell/{}".format(run["flowcell_id"]))
+                flowcell_id = flowcell_info["lims_flowcell_code"]
+                lane_number = run["lane_number"]
+                sequencing_instrument = get_sequencing_instrument(run["machine"])
+                solexa_run_type = run["solexarun_type"]
+                created_date = convert_time(run["run_datetime"])
+
                 reference_genome = libcore["lims_genome_reference"]["path"]
                 aligner = libcore["analysis_software"]["name"]
-                flowcell_info = gsc_api.query("flowcell/{}".format(flowcell_id))
-                flowcell_id = flowcell_info["lims_flowcell_code"]
                 adapter_index_sequence = libcore["libcore"]["primer"][
                     "adapter_index_sequence"
                 ]
@@ -309,6 +311,7 @@ def get_gsc_details(
                     read_type=solexa_run_type_map[solexa_run_type],
                     reference_genome=reference_genome,
                     aligner=aligner,
+                    created_date=created_date,
                 )
                 lane_infos.append(lane_info)
             
@@ -362,7 +365,8 @@ def get_gsc_details(
                 read_type=solexa_run_type_map[solexa_run_type],
                 sequencing_centre='GSC',
                 lane_info=lane_infos, 
-                transferred=transferred
+                transferred=transferred,
+                created=merge_info["complete"],
                 )
 
             details_list.append(list_temp)
@@ -419,6 +423,7 @@ def get_gsc_details(
                     read_type=solexa_run_type_map[solexa_run_type],
                     reference_genome=reference_genome,
                     aligner=aligner,
+                    created_date=created_date,
                 )
             ]
             
@@ -534,6 +539,13 @@ def main(
                 storage, 
                 skip_file_import=skip_file_import,
                 skip_older_than=skip_older_than)
+            for a in detail:
+                print(a['created'])
+                for l in a['lane_info']:
+                    print(l['flowcell_id'], l['lane_number'])
+            import pprint
+            pprint.pprint(detail)
+            raise
 
             #Add dataset to tantalus
             for instance in detail:
