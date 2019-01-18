@@ -5,6 +5,8 @@ from __future__ import print_function
 import sys
 import logging
 
+import pandas as pd
+
 from datamanagement.utils.gsc import GSCAPI
 from datamanagement.utils.constants import LOGGING_FORMAT
 from dbclients.tantalus import TantalusApi
