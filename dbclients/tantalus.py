@@ -116,6 +116,11 @@ class BlobStorageClient(object):
             self.storage_container, 
             blob_name=blobname,
             stream=stream)
+        
+    def create(self, blobname, filepath):
+        self.blob_service.create_blob_from_path(self.storage_container, 
+            blobname,
+            filepath)
 
 
 class ServerStorageClient(object):
@@ -323,6 +328,9 @@ class TantalusApi(BasicAPIClient):
 
         compression = self.get_file_compression(filename)
         file_type = filename.split(".")[1].upper()
+
+        if file_type == 'FASTQ':
+            file_type = 'FQ'
 
         try:
             file_resource = self.get(
