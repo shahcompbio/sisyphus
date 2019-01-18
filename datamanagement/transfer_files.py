@@ -214,9 +214,9 @@ def blob_to_blob_transfer_closure(tantalus_api, source_storage, destination_stor
     """
     # Start BlockBlobService for source and destination accounts
     source_account = tantalus_api.get_storage_client(
-        source_storage["storage_account"]).blob_service
+        source_storage).blob_service
     destination_account = tantalus_api.get_storage_client(
-        destination_storage["storage_account"]).blob_service
+        destination_storage).blob_service
 
     # Get a shared access signature for the source account so that we
     # can read its private files
