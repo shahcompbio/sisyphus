@@ -77,7 +77,6 @@ class BlobStorageClient(object):
         return blobsize
 
     def get_created_time(self, blobname):
-        print("blobname {}".format(blobname))
         properties = self.blob_service.get_blob_properties(self.storage_container, blobname)
         created_time = properties.properties.last_modified.isoformat()
         return created_time
@@ -338,7 +337,6 @@ class TantalusApi(BasicAPIClient):
         # and create a new file instance that is not deleted
         if file_resource is not None:
             overwrite = False
-
             if len(file_resource['file_instances']) == 0:
                 log.info('file resource has no instances, overwriting')
                 overwrite = True
