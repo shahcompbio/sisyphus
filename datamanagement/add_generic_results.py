@@ -84,6 +84,10 @@ def add_generic_results(
             add_filepaths = [filepath]
 
         for add_filepath in add_filepaths:
+            extension = os.path.splitext(add_filepath)[1]
+            if extension not in ('.txt', '.xls'):
+                logging.info("Skipping file resource for {} to Tantalus".format(add_filepath))
+                continue
             logging.info("Adding file resource for {} to Tantalus".format(add_filepath))
             resource, instance = tantalus_api.add_file(
                 storage_name=storage_name,
@@ -91,6 +95,10 @@ def add_generic_results(
                 update=update,
             )
             file_resource_pks.append(resource["id"])
+
+    if len(file_resource_pks) == 0:
+        logging.warning("No files found in filepaths {}".format(filepaths))
+        return
 
     results_dataset_fields = dict(
         name=results_name,
@@ -104,20 +112,22 @@ def add_generic_results(
 
     #Add the dataset to tantalus
     try:
-        results_id = tantalus_api.get("results", name=results_dataset_fields["name"])["id"]
+        existing_results = tantalus_api.get("results", name=results_dataset_fields["name"])
     except NotFoundError:
-        results_id = None
+        existing_results = None
 
-    if update and results_id is not None:
+    if update and existing_results is not None:
         logging.warning("results dataset {} exists, updating".format(results_dataset_fields["name"]))
-        results_dataset = tantalus_api.update("results", id=results_id, **results_dataset_fields)
+        #HACK
+        results_dataset_fields["file_resources"] = list(set(list(results_dataset_fields["file_resources"]) + list(existing_results["file_resources"])))
+        results_dataset = tantalus_api.update("results", id=existing_results["id"], **results_dataset_fields)
 
     else:
         logging.info("creating results dataset {}".format(results_dataset_fields["name"]))
         results_dataset = tantalus_api.get_or_create("results", **results_dataset_fields)
 
     if tag_name is not None:
-        tantalus_api.tag(tag_name, resultsdataset_set=[results_id])
+        tantalus_api.tag(tag_name, resultsdataset_set=[results_dataset["id"]])
 
     logging.info("Succesfully created sequence dataset with ID {}".format(results_dataset["id"]))
 

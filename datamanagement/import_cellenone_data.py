@@ -57,14 +57,15 @@ def glob_cellenone_data(filepaths, storage_name, tag_name=None, update=False, re
     library_paths = collections.defaultdict(set)
 
     for filepath in filepaths:
-        match = re.match(r".*/single_cell_indexing/Cellenone/Cellenone_images/(\d+)_(A\d+[A-Z]*)/", filepath)
+        match = re.match(r".*/single_cell_indexing/Cellenone/(Cellenone_images|need_rename)/(\d+)_(A\d+[A-Z]*)", filepath)
         if match is None:
             logging.warning('skipping malformed {}'.format(filepath))
             continue
 
         fields = match.groups()
-        date = fields[0]
-        library_id = fields[1]
+        subdir = fields[0]
+        date = fields[1]
+        library_id = fields[2]
 
         try:
             tantalus_api.get('dna_library', library_id=library_id)
