@@ -9,6 +9,7 @@ import click
 import socket
 import logging
 import subprocess
+import pandas as pd
 from datetime import datetime
 
 from datamanagement.utils.gsc import get_sequencing_instrument, GSCAPI
@@ -38,6 +39,22 @@ from datamanagement.utils.constants import (
 
 logging.basicConfig(format=LOGGING_FORMAT, stream=sys.stderr, level=logging.INFO)
 gsc_api = GSCAPI()
+TXSHAH_IP = "10.9.208.161"
+TXSHAH_USER_NAME = os.environ["SERVER_USER_NAME"]
+
+def size_match(local_file_path, remote_file_path, ip_address, username):
+    '''
+    Check if the local and remote file size match.
+    Args:
+        local_file_path:  (string) the local path of the file
+        remote_file_path: (string) the remote path of the file
+        ip_address:       (string) the ip address of the remote server
+        username:         (string) the user name of the remote server
+    '''
+    remote_size = subprocess.check_output('ssh {}@{} stat -c%s "{}"'.format(username, ip_address, remote_file_path), shell=True)
+    local_size = subprocess.check_output('stat -c%s "{}"'.format(local_file_path), shell=True)
+    logging.info("local size is {}, remote size is {}".format(local_size, remote_size))
+    return remote_size==local_size
 
 def rsync_file(from_path, to_path, sftp=None, remote_host=None):
     """
@@ -59,8 +76,8 @@ def rsync_file(from_path, to_path, sftp=None, remote_host=None):
     subprocess_cmd = [
         "rsync",
         "-avPL",
-        "--chmod=D555",
-        "--chmod=F444",
+        "--chmod=Da+rw",
+        "--chmod=Fa+r",
         transfer_from_path,
         to_path,
     ]
@@ -239,22 +256,36 @@ def transfer_gsc_bams(bam_detail, bam_paths, storage, sftp=None):
         )
     # Otherwise, rsync to destination server
     else:
-        # Transfer the bam
-        rsync_file(
-            from_path=bam_paths["source_bam_path"],
-            to_path=bam_paths["tantalus_bam_path"],
-            sftp=sftp,
-            remote_host=remote_host
-        )
-        # Transfer the bam index if it exists
-        if bam_paths["source_bai_path"]:
-            # Transfer the bai
+        bam_exist = os.path.exists(bam_paths["tantalus_bam_path"])
+        bam_size_match = False
+        if bam_exist:
+            bam_size_match = size_match(bam_paths["tantalus_bam_path"], bam_paths["source_bam_path"], TXSHAH_IP, TXSHAH_USER_NAME)
+        if not bam_size_match:
+            logging.info("Bam file {} not exists or file sizes don't match, transfer the file".format(bam_paths["tantalus_bam_path"]))
+            # Transfer the bam
             rsync_file(
-                from_path=bam_paths["source_bai_path"],
-                to_path=bam_paths["tantalus_bai_path"],
+                from_path=bam_paths["source_bam_path"],
+                to_path=bam_paths["tantalus_bam_path"],
                 sftp=sftp,
                 remote_host=remote_host
             )
+        logging.info("Bam file {} has been transferred.".format(bam_paths["tantalus_bam_path"]))
+        # Transfer the bam index if it exists
+        if bam_paths["source_bai_path"]:
+            bai_exist = os.path.exists(bam_paths["tantalus_bai_path"])                                                                
+            bai_size_match = False
+            if bai_exist:                                                                                                                 
+                bai_size_match = size_match(bam_paths["tantalus_bai_path"], bam_paths["source_bai_path"], TXSHAH_IP, TXSHAH_USER_NAME)
+            if not bai_size_match:
+                logging.info("Bai file {} not exists or file sizes don't match, transfer the file".format(bam_paths["tantalus_bai_path"]))                                                                                                     
+                # Transfer the bai
+                rsync_file(
+                    from_path=bam_paths["source_bai_path"],
+                    to_path=bam_paths["tantalus_bai_path"],
+                    sftp=sftp,
+                    remote_host=remote_host
+                )
+            logging.info("Bai file {} has been transferred.".format(bam_paths["tantalus_bai_path"]))
         # Create a new bai if the source bai does not exist
         else:
             logging.info("Creating bam index at {}".format(bam_paths["tantalus_bai_path"]))
@@ -418,7 +449,7 @@ def get_merge_info(details_list, gsc_api, library, sample, skip_older_than):
     Returns:
         merged_lanes:   (set) 
     """
-    merge_infos = gsc_api.query("merge?library={}".format(library["library_id"]))
+    merge_infos = gsc_api.query("merge?library={}&production=true".format(library["library_id"]))
     merged_lanes = set()
     for merge_info in merge_infos:
         data_path = merge_info["data_path"]
@@ -452,6 +483,12 @@ def get_merge_info(details_list, gsc_api, library, sample, skip_older_than):
                 assert len(libcores) == 1
                 libcore = libcores[0]
                 primer = gsc_api.query("primer/{}".format(libcore["primer_id"]))
+            elif merge_xref["object_type"] == "repo.analysis":
+                aligned_libcore_id = gsc_api.query("repo_analysis/{}".format(merge_xref["object_id"]))["aligned_libcore_id"]
+                aligned_libcore = gsc_api.query("aligned_libcore/{}/info".format(aligned_libcore_id))
+                libcore = aligned_libcore["libcore"]
+                run = libcore["run"]
+                primer = libcore["primer"]
             else:
                 raise Exception('unknown object type {}'.format(merge_xref["object_type"]))
             flowcell_info = gsc_api.query("flowcell/{}".format(run["flowcell_id"]))
@@ -659,6 +696,50 @@ def get_gsc_details(library_infos, skip_older_than):
     return details_list
 
 
+def create_record(output_csv, detail, file_name, original_file_name):
+    """
+    Create the file transfer record for the given file.
+    
+    Args:
+        output_csv:         (string) The path of the log csv file
+        detail:             (string) The information of the file
+        file_name:          (string) The local file name
+        original_file_name: (string) The source file name 
+    """
+    if not os.path.exists(output_csv):
+        df = pd.DataFrame(columns = [
+            "library_id",
+            "original_file_name"
+            "file_name",
+            "sample_id",
+            ])
+    else:
+        df = pd.read_csv(output_csv)
+        if not df.loc[df["file_name"] == file_name].empty:
+            return
+        df = df.append({
+              "library_id": detail["library"]["library_id"],
+              "original_file_name": original_file_name,
+              "file_name": file_name,
+              "sample_id": detail["sample"]["sample_id"]
+              }, ignore_index=True)
+    df.to_csv(output_csv, index=False)
+
+def update_record(output_csv, file_name, column, value):
+    '''
+    Update the log record of a given file.
+
+    Args:
+        output_csv:   (string) the path of the log csv file
+        file_name:    (string) the name of the file being transferred
+        column:       (string) the name of the column being updated
+        value:        (string) new value of the column
+
+    '''
+    df = pd.read_csv(output_csv)
+    df.loc[df["file_name"] == file_name, column] = value
+    df.to_csv(output_csv, index=False)
+
 @click.command()
 @click.argument('ids', nargs=-1)
 @click.argument('storage', nargs=1)
@@ -667,6 +748,7 @@ def get_gsc_details(library_infos, skip_older_than):
 @click.option('--tag_name')
 @click.option('--update', is_flag=True)
 @click.option('--skip_file_import', is_flag=True)
+@click.option('--log_file')
 @click.option('--query_only', is_flag=True)
 def main(**kwargs):
     """
@@ -683,8 +765,12 @@ def main(**kwargs):
         update:             (flag) specifies whether metadata in tantalus is
                             to be updated or not
         skip_file_import:   (flag) import only new lanes into tantalus
+        log_file:           (string) path to the log file
         query_only:         (flag) only query for the bam paths on the GSC 
     """
+    log_file = None
+    if kwargs["log_file"]:
+        log_file = kwargs["log_file"]
     # Check if this script is being run on thost
     # If not, connect to an ssh client to access /projects/files
     if socket.gethostname() != "txshah":
@@ -696,7 +782,6 @@ def main(**kwargs):
     # Connect to the Tantalus API
     tantalus_api = TantalusApi()
     storage = tantalus_api.get_storage(kwargs["storage"])
-
     # Convert the date to the format we want
     if kwargs["skip_older_than"]:
         skip_older_than = valid_date(kwargs["skip_older_than"])
@@ -736,9 +821,19 @@ def main(**kwargs):
                 continue
 
             if not kwargs["skip_file_import"]:
+                if log_file:
+                    #initiate the record
+                    create_record(log_file, detail, bam_paths["tantalus_bam_name"], bam_paths["source_bam_path"])
                 # Transfer the bam to the specified storage
                 transfer_gsc_bams(detail, bam_paths, storage, sftp)
-
+                if log_file:
+                    update_record(output_csv, bam_paths["tantalus_bam_name"], "transferred_into_local_directory", True)
+                #check if the local file size matches the remote 
+                same_size = size_match(bam_paths["tantalus_bam_path"], bam_paths["source_bam_path"], TXSHAH_IP, TXSHAH_USER_NAME)
+                if not same_size:
+                    logging.info("The local and remote sizes of file {} don't match, please transfer again.".format(bam_paths["tantalus_bam_path"]))
+                    continue 
+                logging.info("The local and remote sizes of file {} match.".format(bam_paths["tantalus_bam_path"]))
                 # Add the files to Tantalus
                 logging.info("Importing {} to Tantalus".format(bam_paths["tantalus_bam_path"]))
 
@@ -754,6 +849,8 @@ def main(**kwargs):
                 )
 
                 logging.info("Successfully added sequence dataset with ID {}".format(dataset["id"]))
+                if log_file:
+                    update_record(output_csv, bam_paths["tantalus_bam_name"], "tantalus_dataset_id", dataset["id"])
             else:
                 logging.info("Importing library {} to tantalus".format(detail["library"]["library_id"]))
                 library_pk = tantalus_api.get_or_create(
